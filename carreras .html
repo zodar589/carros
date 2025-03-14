@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Carreras 2D</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #ddd; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const car = {
+            x: canvas.width / 2 - 15,
+            y: canvas.height - 70,
+            speed: 0,
+            width: 30, // Smaller width
+            height: 60, // Smaller height
+            color: 'red',
+            maxSpeed: 10 // Increased max speed
+        };
+
+        const obstacles = [];
+        const accelerators = [];
+
+        let keys = {};
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        let startTime = Date.now();
+        let lastSpeedIncreaseTime = Date.now();
+
+        function resetTimer() {
+            startTime = Date.now();
+            lastSpeedIncreaseTime = Date.now();
+        }
+
+        let difficulty = "medium"; // Default difficulty
+
+        function setDifficulty(level) {
+            difficulty = level;
+            obstacles.length = 0;
+            accelerators.length = 0;
+            for (let i = 0; i < getInitialObstacles(); i++) {
+                createObstacle();
+            }
+            for (let i = 0; i < getInitialAccelerators(); i++) {
+                createAccelerator();
+            }
+        }
+
+        function getInitialObstacles() {
+            switch (difficulty) {
+                case "easy":
+                    return 4; // Increased by 2
+                case "medium":
+                    return 5; // Increased by 2
+                case "hard":
+                    return 7; // Increased by 2
+                default:
+                    return 5; // Increased by 2
+            }
+        }
+
+        function getInitialAccelerators() {
+            switch (difficulty) {
+                case "easy":
+                    return 3; // Increased by 2
+                case "medium":
+                    return 4; // Increased by 2
+                case "hard":
+                    return 5; // Increased by 2
+                default:
+                    return 4; // Increased by 2
+            }
+        }
+
+        function update() {
+            if ((keys['ArrowLeft'] || keys['a']) && car.x > 0) car.x -= 5;
+            if ((keys['ArrowRight'] || keys['d']) && car.x + car.width < canvas.width) car.x += 5;
+            if ((keys['ArrowUp'] || keys['w'])) car.speed = Math.min(car.speed + 0.1, car.maxSpeed);
+            if (keys['ArrowDown'] || keys['s']) car.speed = Math.max(car.speed - 0.1, 0);
+
+            if ((keys['ArrowUp'] || keys['w']) && car.y > 0) car.y -= 5;
+            if ((keys['ArrowDown'] || keys['s']) && car.y + car.height < canvas.height) car.y += 5;
+
+            car.y -= car.speed;
+            if (car.y < 0) {
+                car.y = canvas.height;
+                createObstacle();
+                createAccelerator();
+            }
+
+            for (let obs of obstacles) {
+                obs.y += obs.speed;
+                if (car.x < obs.x + obs.width && car.x + car.width > obs.x && car.y < obs.y + obs.height && car.y + car.height > obs.y) {
+                    car.x = canvas.width / 2 - 15;
+                    car.y = canvas.height - 70;
+                    car.speed = 0;
+                    resetTimer();
+                }
+            }
+
+            for (let acc of accelerators) {
+                acc.y += acc.speed;
+                if (car.x < acc.x + acc.width && car.x + car.width > acc.x && car.y < acc.y + acc.height && car.y + car.height > acc.y) {
+                    car.speed = Math.min(car.speed + 2, car.maxSpeed);
+                }
+            }
+        }
+
+        function drawWalls() {
+            ctx.fillStyle = "#444";
+            ctx.fillRect(0, 0, 50, canvas.height); // Left wall
+            ctx.fillRect(canvas.width - 50, 0, 50, canvas.height); // Right wall
+        }
+
+        function drawTimer() {
+            const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+            ctx.fillStyle = "black";
+            ctx.font = "20px Arial";
+            ctx.fillText(`Tiempo: ${elapsedTime}s`, 10, 30);
+        }
+
+        function increaseSpeed() {
+            const currentTime = Date.now();
+            if (currentTime - lastSpeedIncreaseTime >= 10000) { // 10 seconds in milliseconds
+                for (let obs of obstacles) {
+                    obs.speed += 0.5; // Increase speed slightly
+                }
+                for (let acc of accelerators) {
+                    acc.speed += 0.5; // Increase speed slightly
+                }
+                lastSpeedIncreaseTime = currentTime;
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawWalls();
+            ctx.fillStyle = car.color;
+            ctx.fillRect(car.x, car.y, car.width, car.height);
+            
+            ctx.fillStyle = 'black';
+            for (let obs of obstacles) {
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+            }
+            
+            ctx.fillStyle = 'blue';
+            for (let acc of accelerators) {
+                ctx.fillRect(acc.x, acc.y, acc.width, acc.height);
+            }
+
+            drawTimer();
+        }
+
+        function createObstacle() {
+            const width = Math.random() * 30 + 30; // Smaller width
+            const height = Math.random() * 20 + 20;
+            const x = Math.random() * (canvas.width - width);
+            const y = Math.random() * (canvas.height - height);
+            const speedMultiplier = difficulty === "easy" ? 1 : difficulty === "medium" ? 1.5 : 2;
+            obstacles.push({ x, y, width, height, speed: Math.random() * speedMultiplier + 1 });
+        }
+
+        function createAccelerator() {
+            const width = 20; // Smaller width
+            const height = 20; // Smaller height
+            const x = Math.random() * (canvas.width - width);
+            const y = Math.random() * (canvas.height - height);
+            const speedMultiplier = difficulty === "easy" ? 1 : difficulty === "medium" ? 1.5 : 2;
+            accelerators.push({ x, y, width, height, speed: Math.random() * speedMultiplier + 1 });
+        }
+
+        // Create initial obstacles and accelerators with more items at the beginning
+        setDifficulty("medium");
+
+        function gameLoop() {
+            update();
+            draw();
+            increaseSpeed();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>

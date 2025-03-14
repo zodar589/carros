@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Racer 2D</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #333; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const roadWidth = canvas.width / 2;
+        const carWidth = 60; // Increased width
+        const carHeight = 100; // Increased height
+
+        let carX = (canvas.width - carWidth) / 2;
+        let carY = canvas.height - carHeight - 20;
+        const speed = 15; // Increased speed
+
+        const trafficCars = [];
+        const bullets = [];
+
+        let startTime = Date.now();
+        let lastSpeedIncreaseTime = Date.now();
+
+        let difficulty = "medium"; // Default difficulty
+
+        const ferrariImage = new Image();
+        ferrariImage.src = 'images/ferrari.png';
+
+        const carImages = [];
+        for (let i = 1; i <= 5; i++) {
+            const img = new Image();
+            img.src = `images/car${i}.png`;
+            carImages.push(img);
+        }
+
+        function setDifficulty(level) {
+            difficulty = level;
+            trafficCars.length = 0;
+            for (let i = 0; i < getInitialTrafficCars(); i++) {
+                createTrafficCar();
+            }
+        }
+
+        function getInitialTrafficCars() {
+            switch (difficulty) {
+                case "easy":
+                    return 4; // Increased by 2
+                case "medium":
+                    return 5; // Increased by 2
+                case "hard":
+                    return 7; // Increased by 2
+                default:
+                    return 5; // Increased by 2
+            }
+        }
+
+        function createTrafficCar() {
+            const width = carWidth;
+            const height = carHeight;
+            const x = Math.random() * (roadWidth - width) + (canvas.width - roadWidth) / 2;
+            const y = -height;
+            const speedMultiplier = difficulty === "easy" ? 1 : difficulty === "medium" ? 1.5 : 2;
+            const image = carImages[Math.floor(Math.random() * carImages.length)];
+            trafficCars.push({ x, y, width, height, speed: Math.random() * speedMultiplier + 1, image });
+        }
+
+        function drawTrafficCars() {
+            for (let trafficCar of trafficCars) {
+                ctx.drawImage(trafficCar.image, trafficCar.x, trafficCar.y, trafficCar.width, trafficCar.height);
+            }
+        }
+
+        function updateTrafficCars() {
+            for (let trafficCar of trafficCars) {
+                trafficCar.y += trafficCar.speed;
+                if (trafficCar.y > canvas.height) {
+                    trafficCar.y = -trafficCar.height;
+                    trafficCar.x = Math.random() * (roadWidth - trafficCar.width) + (canvas.width - roadWidth) / 2;
+                }
+                if (carX < trafficCar.x + trafficCar.width && carX + carWidth > trafficCar.x && carY < trafficCar.y + trafficCar.height && carY + carHeight > trafficCar.y) {
+                    alert("¡Has chocado!");
+                    carX = (canvas.width - carWidth) / 2;
+                    carY = canvas.height - carHeight - 20;
+                    trafficCars.length = 0;
+                    for (let i = 0; i < getInitialTrafficCars(); i++) {
+                        createTrafficCar();
+                    }
+                    resetTimer();
+                }
+            }
+        }
+
+        function shootBullet() {
+            bullets.push({ x: carX + carWidth / 2 - 2, y: carY, width: 4, height: 10, speed: 5 });
+        }
+
+        function drawBullets() {
+            ctx.fillStyle = "yellow";
+            for (let bullet of bullets) {
+                ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+            }
+        }
+
+        function updateBullets() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                let bullet = bullets[i];
+                bullet.y -= bullet.speed;
+                if (bullet.y < 0) {
+                    bullets.splice(i, 1);
+                } else {
+                    for (let j = trafficCars.length - 1; j >= 0; j--) {
+                        let trafficCar = trafficCars[j];
+                        if (bullet.x < trafficCar.x + trafficCar.width && bullet.x + bullet.width > trafficCar.x && bullet.y < trafficCar.y + trafficCar.height && bullet.y + bullet.height > trafficCar.y) {
+                            trafficCars.splice(j, 1);
+                            bullets.splice(i, 1);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        function drawRoad() {
+            ctx.fillStyle = "#555";
+            ctx.fillRect((canvas.width - roadWidth) / 2, 0, roadWidth, canvas.height);
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(canvas.width / 2 - 2, 0, 4, canvas.height);
+        }
+
+        function drawWalls() {
+            ctx.fillStyle = "#444";
+            ctx.fillRect(0, 0, (canvas.width - roadWidth) / 2, canvas.height); // Left wall
+            ctx.fillRect((canvas.width + roadWidth) / 2, 0, (canvas.width - roadWidth) / 2, canvas.height); // Right wall
+        }
+
+        function drawCar() {
+            ctx.drawImage(ferrariImage, carX, carY, carWidth, carHeight);
+        }
+
+        function drawTimer() {
+            const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+            ctx.fillStyle = "white";
+            ctx.font = "20px Arial";
+            ctx.fillText(`Tiempo: ${elapsedTime}s`, 10, 30);
+        }
+
+        function resetTimer() {
+            startTime = Date.now();
+            lastSpeedIncreaseTime = Date.now();
+        }
+
+        function increaseSpeed() {
+            const currentTime = Date.now();
+            if (currentTime - lastSpeedIncreaseTime >= 10000) { // 10 seconds in milliseconds
+                for (let trafficCar of trafficCars) {
+                    trafficCar.speed += 0.5; // Increase speed slightly
+                }
+                lastSpeedIncreaseTime = currentTime;
+            }
+        }
+
+        let keysPressed = {};
+
+        window.addEventListener("keydown", (event) => {
+            keysPressed[event.key] = true;
+        });
+
+        window.addEventListener("keyup", (event) => {
+            keysPressed[event.key] = false;
+        });
+
+        function moveCar() {
+            if ((keysPressed["ArrowLeft"] || keysPressed["a"]) && carX > (canvas.width - roadWidth) / 2) {
+                carX -= speed;
+            }
+            if ((keysPressed["ArrowRight"] || keysPressed["d"]) && carX < (canvas.width + roadWidth) / 2 - carWidth) {
+                carX += speed;
+            }
+            if ((keysPressed["ArrowUp"] || keysPressed["w"]) && carY > 0) {
+                carY -= speed;
+            }
+            if ((keysPressed["ArrowDown"] || keysPressed["s"]) && carY < canvas.height - carHeight) {
+                carY += speed;
+            }
+        }
+
+        window.addEventListener("keydown", (event) => {
+            if (event.key === " ") {
+                shootBullet();
+            }
+        });
+
+        // Create initial traffic cars with more cars at the beginning
+        setDifficulty("medium");
+
+        update();
+
+        function update() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawRoad();
+            drawWalls();
+            drawCar();
+            drawTrafficCars();
+            drawBullets();
+            updateTrafficCars();
+            updateBullets();
+            drawTimer();
+            increaseSpeed();
+            moveCar();
+            requestAnimationFrame(update);
+        }
+
+    </script>
+</body>
+</html>
